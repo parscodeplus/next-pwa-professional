@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>آفلاین - برنامه</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    
+    .offline-container {
+      max-width: 28rem;
+      width: 100%;
+      background: white;
+      border-radius: 1.5rem;
+      padding: 2rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      text-align: center;
+      animation: slideUp 0.5s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .offline-icon {
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 1.5rem;
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .offline-icon svg {
+      width: 48px;
+      height: 48px;
+      color: white;
+    }
+    
+    h1 {
+      font-size: 1.875rem;
+      font-weight: bold;
+      color: #1f2937;
+      margin-bottom: 0.75rem;
+    }
+    
+    p {
+      color: #6b7280;
+      line-height: 1.625;
+      margin-bottom: 1.5rem;
+    }
+    
+    .retry-button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 0.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .retry-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .retry-button:active {
+      transform: translateY(0);
+    }
+    
+    .retry-button svg {
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+    
+    .info-text {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e5e7eb;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+      .offline-container {
+        background: #1f2937;
+      }
+      
+      h1 {
+        color: #f9fafb;
+      }
+      
+      p {
+        color: #9ca3af;
+      }
+      
+      .info-text {
+        color: #6b7280;
+        border-top-color: #374151;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <div class="offline-icon">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
+              d="M18.364 5.636L5.636 18.364M5.636 5.636l12.728 12.728" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
+              d="M8 12h.01M12 12h.01M16 12h.01" />
+      </svg>
+    </div>
+    
+    <h1>عدم دسترسی به اینترنت</h1>
+    
+    <p>
+      به نظر می‌رسد اتصال اینترنت شما قطع است.<br>
+      لطفاً اتصال خود را بررسی کنید و دوباره تلاش نمایید.
+    </p>
+    
+    <button class="retry-button" onclick="retryConnection()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      تلاش مجدد
+    </button>
+    
+    <div class="info-text">
+      پس از برقراری اتصال، تمام تغییرات شما به‌طور خودکار همگام‌سازی خواهد شد.
+    </div>
+  </div>
+
+  <script>
+    function retryConnection() {
+      if (navigator.onLine) {
+        window.location.reload();
+      } else {
+        // نمایش پیام خطا
+        const button = document.querySelector('.retry-button');
+        const originalText = button.innerHTML;
+        button.innerHTML = '⏳ در انتظار اتصال...';
+        button.disabled = true;
+        
+        // گوش دادن به رویداد آنلاین
+        const onlineHandler = () => {
+          window.location.reload();
+        };
+        
+        window.addEventListener('online', onlineHandler, { once: true });
+        
+        // بازنشانی بعد از 5 ثانیه
+        setTimeout(() => {
+          button.innerHTML = originalText;
+          button.disabled = false;
+          window.removeEventListener('online', onlineHandler);
+        }, 5000);
+      }
+    }
+    
+    // گوش دادن به بازگشت اینترنت
+    window.addEventListener('online', () => {
+      const banner = document.createElement('div');
+      banner.textContent = '✅ اتصال اینترنت برقرار شد. در حال به‌روزرسانی...';
+      banner.style.cssText = `
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        right: 1rem;
+        background: #10b981;
+        color: white;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        text-align: center;
+        animation: slideDown 0.3s ease-out;
+        z-index: 1000;
+      `;
+      document.body.appendChild(banner);
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    });
+  </script>
+</body>
+</html>
