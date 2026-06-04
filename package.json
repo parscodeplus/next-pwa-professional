@@ -1,24 +1,16 @@
 {
   "name": "next-pwa-professional",
   "version": "1.0.0",
-  "description": "Professional PWA package for Next.js with App Router, offline support, and beautiful UI",
+  "description": "Professional PWA package for Next.js",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    }
-  },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "prepublishOnly": "npm run build",
-    "postinstall": "node scripts/setup.js"
+    "prepare": "node scripts/prepare.js",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": ["nextjs", "pwa", "offline", "typescript", "app-router"],
   "peerDependencies": {
     "next": ">=14.0.0",
     "react": ">=18.0.0",
@@ -26,7 +18,8 @@
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.0.0",
-    "idb": "^8.0.0"
+    "idb": "^8.0.0",
+    "lucide-react": "^0.468.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
