@@ -1,11 +1,11 @@
+// templates/next.config.template.js
 /** @type {import('next').NextConfig} */
-const withPWAInit = require("@ducanh2912/next-pwa");
 
-const withPWA = withPWAInit({
-  dest: "public",
+const withPWA = require('@ducanh2912/next-pwa')({
+  dest: 'public',
   register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === "development",
+  disable: process.env.NODE_ENV === 'development',
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,

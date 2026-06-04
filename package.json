@@ -15,8 +15,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "prepublishOnly": "npm run build",
-    "postinstall": "node scripts/setup.js"
+    "prepublishOnly": "npm run build"
   },
   "keywords": ["nextjs", "pwa", "offline", "typescript", "app-router"],
   "peerDependencies": {
@@ -26,7 +25,8 @@
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.0.0",
-    "idb": "^8.0.0"
+    "idb": "^8.0.0",
+    "lucide-react": "^0.468.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -36,7 +36,6 @@
   },
   "files": [
     "dist",
-    "scripts",
     "templates",
     "README.md"
   ]
