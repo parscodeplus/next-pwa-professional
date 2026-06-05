@@ -8,6 +8,7 @@ export { OfflinePage } from './components/OfflinePage';
 export { InstallPrompt } from './components/InstallPrompt';
 export { ToastProvider, useToast, ToastLegacy as Toast } from './components/Toast';
 export { LocationProvider, useLocationContext } from './components/LocationProvider';
+export { OnboardingSlider, createOnboardingSlides, presetOnboardingConfig } from './components/OnboardingSlider';
 
 // Hooks
 export { useNetworkStatus } from './hooks/useNetworkStatus';
@@ -16,14 +17,17 @@ export { usePWAInstall } from './hooks/usePWAInstall';
 export { useLocation } from './hooks/useLocation';
 export { useNotification } from './hooks/useNotification';
 export { useErrorTracking } from './hooks/useErrorTracking';
+export { useOnboarding } from './hooks/useOnboarding';
 
-// Types - از فایل‌های هوک
+// Types
 export type { NetworkStatusType } from './hooks/useNetworkStatus';
 export type { UseOfflineStorageOptions, PendingAction } from './hooks/useOfflineStorage';
 export type { ToastType } from './components/Toast';
 export type { LocationData, AddressData, LocationErrorInfo, UseLocationOptions, UseLocationReturn } from './hooks/useLocation';
 export type { UseNotificationReturn, NotificationOptions, NotificationAction } from './hooks/useNotification';
 export type { UseErrorTrackingReturn, ErrorContext, ErrorSeverity } from './hooks/useErrorTracking';
+export type { UseOnboardingReturn } from './hooks/useOnboarding';
+export type { OnboardingSlide, OnboardingConfig } from './lib/onboardingStorage';
 
 // Lib - Notification
 export { 
@@ -49,6 +53,17 @@ export {
   startTransaction,
   finishTransaction,
 } from './lib/errorTracking';
+
+// Lib - Onboarding
+export {
+  hasSeenOnboarding,
+  setOnboardingCompleted,
+  saveOnboardingConfig,
+  getOnboardingConfig,
+  resetOnboarding,
+  DEFAULT_SLIDES,
+  DEFAULT_CONFIG,
+} from './lib/onboardingStorage';
 
 // Lib - بقیه
 export { 
