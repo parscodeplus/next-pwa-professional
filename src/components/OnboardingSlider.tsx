@@ -1,23 +1,33 @@
 // src/components/OnboardingSlider.tsx
 'use client';
 
-import React, { useState, useEffect, useRef, TouchEvent, MouseEvent } from 'react';
-import { useOnboarding, UseOnboardingReturn } from '../hooks/useOnboarding';
+import React, { useState, useEffect, useRef, TouchEvent } from 'react';
+import { useOnboarding } from '../hooks/useOnboarding';
 import { OnboardingSlide, OnboardingConfig } from '../lib/onboardingStorage';
+import { setOnboardingCompleted } from '../lib/onboardingStorage';
 
 export interface OnboardingSliderProps {
   customConfig?: Partial<OnboardingConfig>;
   onComplete?: () => void;
   onSkip?: () => void;
   className?: string;
+  /** فقط در نسخه PWA نصب شده نمایش داده شود (پیش‌فرض: true) */
+  showOnlyInPWA?: boolean;
 }
 
 export function OnboardingSlider({ 
   customConfig, 
   onComplete, 
   onSkip, 
-  className = '' 
+  className = '',
+  showOnlyInPWA = true,
 }: OnboardingSliderProps) {
+  // ✅ همه هوک‌ها در بالای کامپوننت و قبل از هر شرطی
+  const mergedConfig = {
+    ...customConfig,
+    showOnlyInPWA,
+  };
+  
   const {
     slides,
     currentIndex,
@@ -29,12 +39,14 @@ export function OnboardingSlider({
     complete,
     hide,
     config,
-  } = useOnboarding(customConfig);
+    isPWAInstalled,
+  } = useOnboarding(mergedConfig);
 
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isCompletingRef = useRef(false);
 
   // حداقل فاصله برای تشخیص سوایپ
   const minSwipeDistance = 50;
@@ -77,20 +89,42 @@ export function OnboardingSlider({
   };
 
   const handleSkip = () => {
+    if (isCompletingRef.current) return;
+    isCompletingRef.current = true;
+    
+    // ذخیره وضعیت در localStorage قبل از بستن
+    const completedKey = config.completedKey || 'onboarding_completed';
+    setOnboardingCompleted(true, completedKey);
+    
     hide();
     onSkip?.();
+    isCompletingRef.current = false;
   };
 
   const handleComplete = () => {
+    if (isCompletingRef.current) return;
+    isCompletingRef.current = true;
+    
+    // ذخیره وضعیت در localStorage قبل از بستن
+    const completedKey = config.completedKey || 'onboarding_completed';
+    setOnboardingCompleted(true, completedKey);
+    
     complete();
     onComplete?.();
+    isCompletingRef.current = false;
   };
 
   const getCurrentSlide = (): OnboardingSlide | undefined => {
     return slides[currentIndex];
   };
 
-  if (loading || !isOpen) return null;
+  // بررسی شرایط نمایش
+  const shouldShow = !loading && isOpen && (
+    !showOnlyInPWA || (showOnlyInPWA && isPWAInstalled)
+  );
+
+  if (loading) return null;
+  if (!shouldShow) return null;
 
   const currentSlide = getCurrentSlide();
   if (!currentSlide) return null;
@@ -108,7 +142,7 @@ export function OnboardingSlider({
       onTouchEnd={config.allowSwipe ? onTouchEnd : undefined}
       ref={containerRef}
     >
-      {/* دکمه Skip */}
+      {/* دکمه Skip - فقط در اسلایدهای غیر آخر و اگر فعال باشد */}
       {config.showSkip && !isLastSlide && (
         <button
           onClick={handleSkip}
@@ -122,7 +156,12 @@ export function OnboardingSlider({
       {/* محتوای اصلی */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 w-full max-w-md mx-auto">
         {/* تصویر یا آیکون */}
-        <div className="mb-8 animate-fade-in-up">
+        <div 
+          className="mb-8"
+          style={{ 
+            animation: 'fadeInUp 0.5s ease-out forwards',
+          }}
+        >
           {currentSlide.image ? (
             <img 
               src={currentSlide.image} 
@@ -145,16 +184,24 @@ export function OnboardingSlider({
 
         {/* عنوان */}
         <h2 
-          className="text-2xl md:text-3xl font-bold text-center mb-4 animate-fade-in-up"
-          style={{ color: primaryColor }}
+          className="text-2xl md:text-3xl font-bold text-center mb-4"
+          style={{ 
+            color: primaryColor,
+            animation: 'fadeInUp 0.5s ease-out 0.1s forwards',
+            opacity: 0,
+          }}
         >
           {currentSlide.title}
         </h2>
 
         {/* توضیحات */}
         <p 
-          className="text-base md:text-lg text-center opacity-90 animate-fade-in-up"
-          style={{ color: primaryColor }}
+          className="text-base md:text-lg text-center opacity-90"
+          style={{ 
+            color: primaryColor,
+            animation: 'fadeInUp 0.5s ease-out 0.2s forwards',
+            opacity: 0,
+          }}
         >
           {currentSlide.description}
         </p>
@@ -186,6 +233,7 @@ export function OnboardingSlider({
                     : 'w-2 h-2 opacity-50'
                 }`}
                 style={{ backgroundColor: primaryColor }}
+                aria-label={`Go to slide ${idx + 1}`}
               />
             ))}
           </div>
@@ -224,7 +272,7 @@ export function OnboardingSlider({
       </div>
 
       {/* استایل‌های انیمیشن */}
-      <style jsx>{`
+      <style>{`
         @keyframes fadeInUp {
           from {
             opacity: 0;
@@ -234,9 +282,6 @@ export function OnboardingSlider({
             opacity: 1;
             transform: translateY(0);
           }
-        }
-        .animate-fade-in-up {
-          animation: fadeInUp 0.5s ease-out forwards;
         }
       `}</style>
     </div>
@@ -262,7 +307,8 @@ export function createOnboardingSlides(slides: Partial<OnboardingSlide>[]): Onbo
 export function presetOnboardingConfig(config: Partial<OnboardingConfig>): void {
   if (typeof window !== 'undefined') {
     const { saveOnboardingConfig } = require('../lib/onboardingStorage');
-    const finalConfig = { ...require('../lib/onboardingStorage').DEFAULT_CONFIG, ...config };
+    const { DEFAULT_CONFIG } = require('../lib/onboardingStorage');
+    const finalConfig = { ...DEFAULT_CONFIG, ...config };
     saveOnboardingConfig(finalConfig);
   }
 }

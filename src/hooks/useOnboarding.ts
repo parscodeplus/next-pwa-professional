@@ -11,6 +11,8 @@ import {
   getOnboardingConfig,
   resetOnboarding,
   DEFAULT_CONFIG,
+  isInstalledPWA,
+  setPWAInstalled,
 } from '../lib/onboardingStorage';
 
 export interface UseOnboardingReturn {
@@ -19,6 +21,7 @@ export interface UseOnboardingReturn {
   isOpen: boolean;
   hasSeen: boolean;
   loading: boolean;
+  isPWAInstalled: boolean;
   show: () => void;
   hide: () => void;
   next: () => void;
@@ -36,12 +39,22 @@ export function useOnboarding(customConfig?: Partial<OnboardingConfig>): UseOnbo
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [hasSeen, setHasSeen] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isPWAInstalled, setIsPWAInstalled] = useState<boolean>(false);
   const [config, setConfigState] = useState<OnboardingConfig>(DEFAULT_CONFIG);
   const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
+  const initializedRef = useRef(false);
 
-  // بارگذاری تنظیمات و وضعیت
+  // بارگذاری تنظیمات و وضعیت - فقط یکبار اجرا شود
   useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    
     const loadConfig = () => {
+      // بررسی نصب بودن PWA
+      const pwaInstalled = isInstalledPWA();
+      setIsPWAInstalled(pwaInstalled);
+      
       // بارگذاری تنظیمات از localStorage یا استفاده از پیش‌فرض
       const savedConfig = getOnboardingConfig();
       let finalConfig = savedConfig ? { ...savedConfig, ...customConfig } : { ...DEFAULT_CONFIG, ...customConfig };
@@ -58,20 +71,47 @@ export function useOnboarding(customConfig?: Partial<OnboardingConfig>): UseOnbo
       const seen = hasSeenOnboarding(finalConfig.completedKey);
       setHasSeen(seen);
       
-      // اگر ندیده باشد، اسلایدر را نشان بده
-      if (!seen) {
+      // تصمیم‌گیری برای نمایش اسلایدر:
+      const shouldShow = !seen && (
+        !finalConfig.showOnlyInPWA || (finalConfig.showOnlyInPWA && pwaInstalled)
+      );
+      
+      if (shouldShow && isMountedRef.current) {
         setIsOpen(true);
       }
       
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     };
     
     loadConfig();
-  }, [customConfig]);
+    
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [customConfig]); // فقط وابسته به customConfig
+
+  // گوش دادن به رویداد نصب PWA
+  useEffect(() => {
+    const handleAppInstalled = () => {
+      if (!isMountedRef.current) return;
+      setPWAInstalled(true);
+      setIsPWAInstalled(true);
+      
+      // اگر اسلایدر قبلاً دیده نشده و تنظیمات ایجاب می‌کند، نمایش بده
+      if (!hasSeen && config.showOnlyInPWA && isMountedRef.current) {
+        setIsOpen(true);
+      }
+    };
+    
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => window.removeEventListener('appinstalled', handleAppInstalled);
+  }, [hasSeen, config.showOnlyInPWA]);
 
   // Auto-play
   useEffect(() => {
-    if (config.autoPlay && isOpen && !loading) {
+    if (config.autoPlay && isOpen && !loading && slides.length > 0) {
       autoPlayTimerRef.current = setInterval(() => {
         if (currentIndex < slides.length - 1) {
           next();
@@ -86,14 +126,18 @@ export function useOnboarding(customConfig?: Partial<OnboardingConfig>): UseOnbo
         clearInterval(autoPlayTimerRef.current);
       }
     };
-  }, [config.autoPlay, isOpen, loading, currentIndex, slides.length]);
+  }, [config.autoPlay, isOpen, loading, currentIndex, slides.length, config.autoPlayDelay]);
 
   const show = useCallback(() => {
-    setIsOpen(true);
+    if (isMountedRef.current) {
+      setIsOpen(true);
+    }
   }, []);
 
   const hide = useCallback(() => {
-    setIsOpen(false);
+    if (isMountedRef.current) {
+      setIsOpen(false);
+    }
   }, []);
 
   const next = useCallback(() => {
@@ -118,14 +162,16 @@ export function useOnboarding(customConfig?: Partial<OnboardingConfig>): UseOnbo
 
   const complete = useCallback(() => {
     setOnboardingCompleted(true, config.completedKey);
-    setIsOpen(false);
-    setHasSeen(true);
+    if (isMountedRef.current) {
+      setIsOpen(false);
+      setHasSeen(true);
+    }
     
     // اجرای اکشن اسلاید آخر اگر وجود داشته باشد
     const lastSlide = slides[slides.length - 1];
-    if (lastSlide?.action) {
+    if (lastSlide?.action && typeof window !== 'undefined') {
       const { type, target } = lastSlide.action;
-      if (type === 'navigate' && typeof window !== 'undefined') {
+      if (type === 'navigate') {
         window.location.href = target;
       }
     }
@@ -133,10 +179,15 @@ export function useOnboarding(customConfig?: Partial<OnboardingConfig>): UseOnbo
 
   const reset = useCallback(() => {
     resetOnboarding(config.completedKey);
-    setHasSeen(false);
-    setCurrentIndex(0);
-    setIsOpen(true);
-  }, [config.completedKey]);
+    if (isMountedRef.current) {
+      setHasSeen(false);
+      setCurrentIndex(0);
+      
+      if (!config.showOnlyInPWA || (config.showOnlyInPWA && isPWAInstalled)) {
+        setIsOpen(true);
+      }
+    }
+  }, [config.completedKey, config.showOnlyInPWA, isPWAInstalled]);
 
   const setConfig = useCallback((newConfig: Partial<OnboardingConfig>) => {
     const updatedConfig = { ...config, ...newConfig };
@@ -151,6 +202,7 @@ export function useOnboarding(customConfig?: Partial<OnboardingConfig>): UseOnbo
     isOpen,
     hasSeen,
     loading,
+    isPWAInstalled,
     show,
     hide,
     next,

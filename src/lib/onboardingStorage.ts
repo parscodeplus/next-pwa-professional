@@ -30,11 +30,34 @@ export interface OnboardingConfig {
   nextButtonText: string;
   backButtonText: string;
   completedKey: string;
+  /** فقط در نسخه PWA نصب شده نمایش داده شود */
+  showOnlyInPWA?: boolean;
 }
 
 // کلید پیش‌فرض برای ذخیره وضعیت دیده شدن اسلایدر
 const DEFAULT_COMPLETED_KEY = 'onboarding_completed';
 const DEFAULT_CONFIG_KEY = 'onboarding_config';
+
+// بررسی آیا کاربر در نسخه PWA نصب شده است
+export function isInstalledPWA(): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  // بررسی در حالت standalone (نصب شده)
+  const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches ||
+                             (window.navigator as any).standalone === true;
+  
+  // بررسی از طریق beforeinstallprompt (اگر قبلاً نصب شده)
+  const isInstalled = localStorage.getItem('pwa_installed') === 'true';
+  
+  return isInStandaloneMode || isInstalled;
+}
+
+// ثبت اینکه PWA نصب شده است
+export function setPWAInstalled(installed: boolean = true): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('pwa_installed', JSON.stringify(installed));
+  }
+}
 
 // بررسی آیا کاربر قبلاً اسلایدر را دیده است
 export function hasSeenOnboarding(key: string = DEFAULT_COMPLETED_KEY): boolean {
@@ -79,7 +102,7 @@ export function resetOnboarding(key: string = DEFAULT_COMPLETED_KEY): void {
   }
 }
 
-// اسلایدهای پیش‌فرض (در صورت عدم ارائه تنظیمات)
+// اسلایدهای پیش‌فرض
 export const DEFAULT_SLIDES: OnboardingSlide[] = [
   {
     id: 'welcome',
@@ -92,23 +115,16 @@ export const DEFAULT_SLIDES: OnboardingSlide[] = [
   {
     id: 'offline',
     title: '📡 کار در حالت آفلاین',
-    description: 'حتی بدون اینترنت هم می‌توانید از برنامه استفاده کنید. داده‌ها پس از آنلاین شدن همگام‌سازی می‌شوند.',
+    description: 'حتی بدون اینترنت هم می‌توانید از برنامه استفاده کنید.',
     image: '/images/onboarding/offline.svg',
     backgroundColor: '#10b981',
   },
   {
     id: 'pwa',
     title: '📱 نصب روی دستگاه',
-    description: 'می‌توانید برنامه را روی صفحه اصلی گوشی خود نصب کنید و مانند یک اپلیکیشن بومی از آن استفاده کنید.',
+    description: 'برنامه را روی صفحه اصلی گوشی خود نصب کنید.',
     image: '/images/onboarding/pwa.svg',
     backgroundColor: '#f59e0b',
-  },
-  {
-    id: 'location',
-    title: '📍 موقعیت مکانی',
-    description: 'با فعال کردن موقعیت مکانی، امکانات بیشتری در اختیار شما قرار می‌گیرد.',
-    image: '/images/onboarding/location.svg',
-    backgroundColor: '#ef4444',
   },
 ];
 
@@ -127,4 +143,5 @@ export const DEFAULT_CONFIG: OnboardingConfig = {
   nextButtonText: 'بعدی',
   backButtonText: 'قبلی',
   completedKey: DEFAULT_COMPLETED_KEY,
+  showOnlyInPWA: true, // پیش‌فرض: فقط در PWA نصب شده نمایش داده شود
 };

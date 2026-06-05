@@ -63,6 +63,8 @@ export {
   resetOnboarding,
   DEFAULT_SLIDES,
   DEFAULT_CONFIG,
+  isInstalledPWA,
+  setPWAInstalled,
 } from './lib/onboardingStorage';
 
 // Lib - بقیه

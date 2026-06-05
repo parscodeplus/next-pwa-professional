@@ -24,6 +24,7 @@ export interface UseLocationOptions {
   watchMode?: boolean;
   cacheMaxAge?: number;
   autoReverseGeocode?: boolean;
+  enableFallback?: boolean;
   maxRetries?: number;
 }
 
@@ -51,11 +52,12 @@ export interface UseLocationReturn {
 export function useLocation(options: UseLocationOptions = {}): UseLocationReturn {
   const {
     enableHighAccuracy = true,
-    timeout = 10000,
+    timeout = 15000, // افزایش به 15 ثانیه
     maximumAge = 0,
     watchMode = false,
     cacheMaxAge = 5 * 60 * 1000,
     autoReverseGeocode = true,
+    enableFallback = true,
     maxRetries = 3,
   } = options;
 
@@ -72,6 +74,7 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationReturn
   const isMountedRef = useRef(true);
   const isGettingLocationRef = useRef(false);
   const cachedLocationRef = useRef<LocationData | null>(null);
+  const getCurrentLocationPromiseRef = useRef<Promise<LocationData | null> | null>(null);
 
   // دریافت موقعیت از کش
   const getCachedLocation = useCallback((): LocationData | null => {
@@ -153,8 +156,8 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationReturn
     };
     
     console.log(`📍 موقعیت ${isHighAccuracy ? 'دقیق' : 'تخمینی'} دریافت شد:`, {
-      lat: newLocation.latitude,
-      lng: newLocation.longitude,
+      lat: newLocation.latitude.toFixed(6),
+      lng: newLocation.longitude.toFixed(6),
       accuracy: newLocation.accuracy,
     });
     
@@ -183,7 +186,20 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationReturn
   const handleError = useCallback((error: GeolocationPositionError, isRetry: boolean = false) => {
     if (!isMountedRef.current) return;
     
-    console.error('📍 خطا در دریافت موقعیت:', error.code, error.message);
+    console.warn('📍 خطا در دریافت موقعیت:', error.code, error.message);
+    
+    // اگر خطای timeout بود و کش معتبر وجود دارد، از کش استفاده کن
+    if (error.code === 3) { // TIMEOUT
+      const cached = getCachedLocation();
+      if (cached && isLocationCacheValid(30000)) {
+        console.log('📍 استفاده از موقعیت کش شده به دلیل timeout');
+        setLocation(cached);
+        setError(null);
+        setLoading(false);
+        isGettingLocationRef.current = false;
+        return;
+      }
+    }
     
     const formattedError = formatLocationError(error);
     setError(formattedError);
@@ -197,7 +213,7 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationReturn
     if (isRetry) {
       setIsRetrying(false);
     }
-  }, []);
+  }, [getCachedLocation]);
 
   // دریافت موقعیت با دقت پایین (Fallback)
   const getLocationWithLowAccuracy = useCallback((): Promise<LocationData | null> => {
@@ -207,39 +223,67 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationReturn
         return;
       }
       
-      console.log('📍 تلاش با دقت پایین...');
+      let timeoutId: NodeJS.Timeout;
+      let isResolved = false;
+      
+      timeoutId = setTimeout(() => {
+        if (!isResolved) {
+          isResolved = true;
+          console.log('📍 تلاش با دقت پایین: timeout');
+          const cached = getCachedLocation();
+          if (cached) {
+            resolve(cached);
+          } else {
+            resolve(null);
+          }
+        }
+      }, 10000);
       
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          console.log('✅ موقعیت با دقت پایین دریافت شد');
-          updateLocation(position, false);
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            altitude: position.coords.altitude,
-            altitudeAccuracy: position.coords.altitudeAccuracy,
-            heading: position.coords.heading,
-            speed: position.coords.speed,
-            timestamp: position.timestamp,
-          });
+          if (!isResolved) {
+            isResolved = true;
+            clearTimeout(timeoutId);
+            console.log('✅ موقعیت با دقت پایین دریافت شد');
+            updateLocation(position, false);
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              altitude: position.coords.altitude,
+              altitudeAccuracy: position.coords.altitudeAccuracy,
+              heading: position.coords.heading,
+              speed: position.coords.speed,
+              timestamp: position.timestamp,
+            });
+          }
         },
         (error) => {
-          console.error('❌ خطا در دریافت موقعیت با دقت پایین:', error.message);
-          resolve(null);
+          if (!isResolved) {
+            isResolved = true;
+            clearTimeout(timeoutId);
+            console.warn('⚠️ خطا در دریافت موقعیت با دقت پایین:', error.message);
+            const cached = getCachedLocation();
+            resolve(cached);
+          }
         },
         {
           enableHighAccuracy: false,
-          timeout: 8000,
+          timeout: 12000,
           maximumAge: 30000,
         }
       );
     });
-  }, [updateLocation]);
+  }, [updateLocation, getCachedLocation]);
 
   // دریافت موقعیت اصلی (با دقت بالا)
   const getCurrentLocation = useCallback((): Promise<LocationData | null> => {
-    return new Promise((resolve) => {
+    // اگر در حال دریافت هستیم، promise قبلی را برگردان
+    if (getCurrentLocationPromiseRef.current) {
+      return getCurrentLocationPromiseRef.current;
+    }
+    
+    const promise = new Promise<LocationData | null>((resolve) => {
       if (isGettingLocationRef.current) {
         console.log('📍 در حال دریافت موقعیت، لطفاً صبر کنید...');
         resolve(null);
@@ -262,6 +306,9 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationReturn
       setLoading(true);
       setError(null);
       
+      let timeoutId: NodeJS.Timeout;
+      let isResolved = false;
+      
       const geoOptions = {
         enableHighAccuracy: true,
         timeout: timeout,
@@ -270,28 +317,71 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationReturn
       
       console.log('📍 درخواست موقعیت دقیق...', geoOptions);
       
+      timeoutId = setTimeout(() => {
+        if (!isResolved) {
+          isResolved = true;
+          isGettingLocationRef.current = false;
+          setLoading(false);
+          console.warn('📍 Timeout در دریافت موقعیت دقیق');
+          
+          // استفاده از موقعیت کش شده
+          const cached = getCachedLocation();
+          if (cached) {
+            console.log('📍 استفاده از موقعیت کش شده');
+            setLocation(cached);
+            resolve(cached);
+          } else {
+            handleError({
+              code: 3,
+              message: 'Timeout expired',
+              PERMISSION_DENIED: 1,
+              POSITION_UNAVAILABLE: 2,
+              TIMEOUT: 3,
+            });
+            resolve(null);
+          }
+        }
+      }, timeout + 1000);
+      
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          updateLocation(position, true);
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            altitude: position.coords.altitude,
-            altitudeAccuracy: position.coords.altitudeAccuracy,
-            heading: position.coords.heading,
-            speed: position.coords.speed,
-            timestamp: position.timestamp,
-          });
+          if (!isResolved) {
+            isResolved = true;
+            clearTimeout(timeoutId);
+            updateLocation(position, true);
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              altitude: position.coords.altitude,
+              altitudeAccuracy: position.coords.altitudeAccuracy,
+              heading: position.coords.heading,
+              speed: position.coords.speed,
+              timestamp: position.timestamp,
+            });
+          }
         },
         (error) => {
-          handleError(error);
-          resolve(null);
+          if (!isResolved) {
+            isResolved = true;
+            clearTimeout(timeoutId);
+            handleError(error);
+            resolve(null);
+          }
         },
         geoOptions
       );
     });
-  }, [timeout, updateLocation, handleError]);
+    
+    getCurrentLocationPromiseRef.current = promise;
+    promise.finally(() => {
+      if (getCurrentLocationPromiseRef.current === promise) {
+        getCurrentLocationPromiseRef.current = null;
+      }
+    });
+    
+    return promise;
+  }, [timeout, updateLocation, handleError, getCachedLocation]);
 
   // دریافت موقعیت با مکانیزم Fallback هوشمند
   const getLocationWithFallback = useCallback(async (): Promise<LocationData | null> => {
@@ -305,18 +395,11 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationReturn
     
     // 2. تلاش برای دریافت موقعیت دقیق
     try {
-      const locationPromise = getCurrentLocation();
-      const timeoutPromise = new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error('GPS_TIMEOUT')), timeout + 1000);
-      });
-      
-      const result = await Promise.race([locationPromise, timeoutPromise]);
-      
+      const result = await getCurrentLocation();
       if (result) {
         console.log('✅ موقعیت دقیق دریافت شد');
         return result;
       }
-      
       throw new Error('GPS_FAILED');
     } catch (error) {
       console.warn('⚠️ دریافت موقعیت دقیق با مشکل مواجه شد، استفاده از روش جایگزین...');
@@ -342,7 +425,7 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationReturn
       setLoading(false);
       return null;
     }
-  }, [getCachedLocation, getCurrentLocation, getLocationWithLowAccuracy, timeout]);
+  }, [getCachedLocation, getCurrentLocation, getLocationWithLowAccuracy]);
 
   const retry = useCallback(async () => {
     if (retryCount >= maxRetries) {
@@ -384,7 +467,7 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationReturn
       (error) => handleError(error),
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000,
         maximumAge: 0,
       }
     );
@@ -450,8 +533,8 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationReturn
       if (watchMode) {
         startWatching();
       } else {
-        // دریافت موقعیت با مکانیزم fallback
-        await getLocationWithFallback();
+        // دریافت موقعیت با مکانیزم fallback (غیرمسدود)
+        getLocationWithFallback();
       }
     };
     
