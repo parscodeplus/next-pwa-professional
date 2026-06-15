@@ -8,6 +8,7 @@ export { OfflinePage } from './components/OfflinePage';
 export { InstallPrompt } from './components/InstallPrompt';
 export { ToastProvider, useToast, ToastLegacy as Toast } from './components/Toast';
 export { LocationProvider, useLocationContext } from './components/LocationProvider';
+export { LocationGuide } from './components/LocationGuide';
 export { OnboardingSlider, createOnboardingSlides, presetOnboardingConfig } from './components/OnboardingSlider';
 
 // Hooks
@@ -85,6 +86,8 @@ export {
   updateRetryCount
 } from './lib/offlineStorage';
 export { toastEvents, setupNetworkToastListener } from './lib/toastEvents';
+
+
 export {
   reverseGeocode,
   calculateDistance,
@@ -93,4 +96,10 @@ export {
   getLocationFromCache,
   isLocationCacheValid,
   formatLocationError,
+  getLocationByIp,        // اضافه شد
 } from './lib/locationUtils';
+// src/index.ts
+
+
+
+export type { IpLocationData } from './lib/locationUtils';

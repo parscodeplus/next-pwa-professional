@@ -165,40 +165,28 @@ function ErrorTrackingHandler({
 }
 
 // کامپوننت مدیریت Toast
-function ToastEventHandler({ 
-  enableToasts, 
-  autoNetworkToasts,
-}: { 
-  enableToasts: boolean;
-  autoNetworkToasts: boolean;
-}) {
-  const { showNetworkToast, showToast } = useToast();
+function ToastEventHandler({ enableToasts, autoNetworkToasts }: { enableToasts: boolean; autoNetworkToasts: boolean }) {
+  const { showToast } = useToast();
 
   useEffect(() => {
-    if (!enableToasts) return;
+    if (!enableToasts || !autoNetworkToasts) return;
 
-    let cleanup: (() => void) | undefined;
-    
-    if (autoNetworkToasts) {
-      cleanup = setupNetworkToastListener(showNetworkToast);
-    }
-
-    const handleSWEvents = () => {
-      if (typeof window !== 'undefined' && navigator.serviceWorker) {
-        navigator.serviceWorker.addEventListener('message', (event) => {
-          if (event.data?.type === 'CACHE_UPDATED') {
-            showToast('نسخه جدید برنامه در پس‌زمینه دانلود شد', 'info', 4000);
-          }
-        });
-      }
+    const handleOnline = () => {
+      showToast('✅ اتصال اینترنت برقرار شد', 'success', 3000);
     };
 
-    handleSWEvents();
+    const handleOffline = () => {
+      showToast('🔴 اینترنت قطع است', 'error', 0);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     return () => {
-      if (cleanup) cleanup();
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
-  }, [enableToasts, autoNetworkToasts, showNetworkToast, showToast]);
+  }, [enableToasts, autoNetworkToasts, showToast]);
 
   return null;
 }
