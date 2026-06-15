@@ -1,4 +1,4 @@
-// // src/lib/locationUtils.ts
+// src/lib/locationUtils.ts
 'use client';
 
 export interface LocationData {
@@ -32,7 +32,13 @@ export interface LocationErrorInfo {
   message: string;
 }
 
-
+export interface IpLocationData {
+  latitude: number;
+  longitude: number;
+  city?: string;
+  country?: string;
+  ip?: string;
+}
 
 // تبدیل خطاهای Geolocation API به فرمت یکسان
 export function formatLocationError(error: GeolocationPositionError): LocationErrorInfo {
@@ -45,7 +51,7 @@ export function formatLocationError(error: GeolocationPositionError): LocationEr
     case error.POSITION_UNAVAILABLE:
       return {
         code: 'POSITION_UNAVAILABLE',
-        message: 'موقعیت مکانی در دسترس نیست. لطفاً دوباره تلاش کنید.',
+        message: 'موقعیت مکانی در دسترس نیست. لطفاً GPS را فعال کنید.',
       };
     case error.TIMEOUT:
       return {
@@ -70,7 +76,6 @@ export async function reverseGeocode(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&accept-language=fa`
     );
     const data = await response.json();
-    
     if (data && data.address) {
       return {
         country: data.address.country || '',
@@ -84,6 +89,28 @@ export async function reverseGeocode(
     return null;
   } catch (error) {
     console.error('Reverse geocoding error:', error);
+    return null;
+  }
+}
+
+// دریافت موقعیت تقریبی بر اساس IP کاربر
+export async function getLocationByIp(): Promise<IpLocationData | null> {
+  try {
+    const response = await fetch('https://ipapi.co/json/');
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data.latitude && data.longitude) {
+      return {
+        latitude: data.latitude,
+        longitude: data.longitude,
+        city: data.city,
+        country: data.country_name,
+        ip: data.ip,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.warn('IP geolocation failed:', error);
     return null;
   }
 }
@@ -137,13 +164,17 @@ export function getLocationFromCache(): (LocationData & { cachedAt: number }) | 
   if (typeof window !== 'undefined') {
     const cached = localStorage.getItem('cached_location');
     if (cached) {
-      return JSON.parse(cached);
+      try {
+        return JSON.parse(cached);
+      } catch {
+        return null;
+      }
     }
   }
   return null;
 }
 
-// بررسی اعتبار کش موقعیت (پیش‌فرض 5 دقیقه)
+// بررسی اعتبار کش موقعیت
 export function isLocationCacheValid(maxAgeMs: number = 5 * 60 * 1000): boolean {
   const cached = getLocationFromCache();
   if (!cached) return false;

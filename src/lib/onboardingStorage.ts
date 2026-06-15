@@ -1,0 +1,147 @@
+// src/lib/onboardingStorage.ts
+'use client';
+
+export interface OnboardingSlide {
+  id: string;
+  title: string;
+  description: string;
+  image?: string;
+  icon?: string;
+  backgroundColor?: string;
+  primaryColor?: string;
+  buttonText?: string;
+  action?: {
+    type: 'link' | 'function' | 'navigate';
+    target: string;
+  };
+}
+
+export interface OnboardingConfig {
+  slides: OnboardingSlide[];
+  showSkip: boolean;
+  showDots: boolean;
+  autoPlay: boolean;
+  autoPlayDelay: number;
+  allowSwipe: boolean;
+  allowDrag: boolean;
+  loop: boolean;
+  finalButtonText: string;
+  skipButtonText: string;
+  nextButtonText: string;
+  backButtonText: string;
+  completedKey: string;
+  /** فقط در نسخه PWA نصب شده نمایش داده شود */
+  showOnlyInPWA?: boolean;
+}
+
+// کلید پیش‌فرض برای ذخیره وضعیت دیده شدن اسلایدر
+const DEFAULT_COMPLETED_KEY = 'onboarding_completed';
+const DEFAULT_CONFIG_KEY = 'onboarding_config';
+
+// بررسی آیا کاربر در نسخه PWA نصب شده است
+export function isInstalledPWA(): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  // بررسی در حالت standalone (نصب شده)
+  const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches ||
+                             (window.navigator as any).standalone === true;
+  
+  // بررسی از طریق beforeinstallprompt (اگر قبلاً نصب شده)
+  const isInstalled = localStorage.getItem('pwa_installed') === 'true';
+  
+  return isInStandaloneMode || isInstalled;
+}
+
+// ثبت اینکه PWA نصب شده است
+export function setPWAInstalled(installed: boolean = true): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('pwa_installed', JSON.stringify(installed));
+  }
+}
+
+// بررسی آیا کاربر قبلاً اسلایدر را دیده است
+export function hasSeenOnboarding(key: string = DEFAULT_COMPLETED_KEY): boolean {
+  if (typeof window === 'undefined') return true;
+  const value = localStorage.getItem(key);
+  return value === 'true';
+}
+
+// ثبت اینکه کاربر اسلایدر را دیده است
+export function setOnboardingCompleted(completed: boolean = true, key: string = DEFAULT_COMPLETED_KEY): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(key, JSON.stringify(completed));
+  }
+}
+
+// ذخیره تنظیمات اسلایدر در localStorage
+export function saveOnboardingConfig(config: OnboardingConfig, key: string = DEFAULT_CONFIG_KEY): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(key, JSON.stringify(config));
+  }
+}
+
+// دریافت تنظیمات اسلایدر از localStorage
+export function getOnboardingConfig(key: string = DEFAULT_CONFIG_KEY): OnboardingConfig | null {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+// پاک کردن وضعیت اسلایدر (برای تست)
+export function resetOnboarding(key: string = DEFAULT_COMPLETED_KEY): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(key);
+  }
+}
+
+// اسلایدهای پیش‌فرض
+export const DEFAULT_SLIDES: OnboardingSlide[] = [
+  {
+    id: 'welcome',
+    title: '✨ به برنامه خوش آمدید',
+    description: 'برنامه شما آماده استفاده است. از قابلیت‌های آفلاین و PWA لذت ببرید.',
+    image: '/images/onboarding/welcome.svg',
+    backgroundColor: '#6366f1',
+    buttonText: 'شروع',
+  },
+  {
+    id: 'offline',
+    title: '📡 کار در حالت آفلاین',
+    description: 'حتی بدون اینترنت هم می‌توانید از برنامه استفاده کنید.',
+    image: '/images/onboarding/offline.svg',
+    backgroundColor: '#10b981',
+  },
+  {
+    id: 'pwa',
+    title: '📱 نصب روی دستگاه',
+    description: 'برنامه را روی صفحه اصلی گوشی خود نصب کنید.',
+    image: '/images/onboarding/pwa.svg',
+    backgroundColor: '#f59e0b',
+  },
+];
+
+// تنظیمات پیش‌فرض
+export const DEFAULT_CONFIG: OnboardingConfig = {
+  slides: DEFAULT_SLIDES,
+  showSkip: true,
+  showDots: true,
+  autoPlay: false,
+  autoPlayDelay: 5000,
+  allowSwipe: true,
+  allowDrag: true,
+  loop: false,
+  finalButtonText: 'شروع استفاده از برنامه',
+  skipButtonText: 'رد کردن',
+  nextButtonText: 'بعدی',
+  backButtonText: 'قبلی',
+  completedKey: DEFAULT_COMPLETED_KEY,
+  showOnlyInPWA: true, // پیش‌فرض: فقط در PWA نصب شده نمایش داده شود
+};
