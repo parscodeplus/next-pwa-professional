@@ -36,6 +36,9 @@ importers:
       '@types/react':
         specifier: ^18.0.0
         version: 18.3.30
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@18.3.30)
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(postcss@8.4.31)(typescript@5.9.3)
@@ -1355,6 +1358,11 @@ packages:
 
   '@types/prop-types@15.7.15':
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
+
+  '@types/react-dom@19.2.3':
+    resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
+    peerDependencies:
+      '@types/react': ^19.2.0
 
   '@types/react@18.3.30':
     resolution: {integrity: sha512-3ek6mwJL5/VBewBcY4S66cqlCtK3qi4WIq37Z0m/NHw1hjhI7274Mx1qz/+ggSzyBCOEf7eHjBN6INjPAWYfYw==}
@@ -4145,6 +4153,10 @@ snapshots:
       undici-types: 6.21.0
 
   '@types/prop-types@15.7.15': {}
+
+  '@types/react-dom@19.2.3(@types/react@18.3.30)':
+    dependencies:
+      '@types/react': 18.3.30
 
   '@types/react@18.3.30':
     dependencies:
